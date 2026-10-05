@@ -1,3 +1,4 @@
+# Summarize saved hub measurements for the three experimental conditions.
 %reset -f
 import numpy as np
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ Scatter_RBPJpls = np.load('Scatter_RBPJpls.npy')
 Scatter_DAPT = np.load('Scatter_DAPT.npy')
 
 
+# Keep the recorded hub rows and leave out unused rows in the saved arrays.
 Scatter_RBPJmns = Scatter_RBPJmns[0:1499,:]
 Scatter_RBPJpls = Scatter_RBPJpls[0:1039,:]
 Scatter_DAPT = Scatter_DAPT[0:1241,:]
@@ -30,6 +32,7 @@ Norm_Scatter_DAPT = Norm_Scatter_DAPT[0:1241,:]
 #Results[:,0,0:2] are averages Results[:,-1,0:2] are st dev
 # 0 is DAPT 1 is RBPJ- 2 is RBPJ+
 
+# Rows hold cells; columns hold DAPT, RBPJ-, and RBPJ+, in that order.
 NumOfHubsMat=np.zeros((120,3))
 VolOfHubs=np.zeros((120,3))
 Norm_Dev_VolOfHubs=np.zeros((120,3))
@@ -55,6 +58,7 @@ nucleoliCer=np.zeros((120,3))
 eachHub_JF_over_Cer=np.zeros((120,3))
 
 
+# Calculate hub counts, mean sizes, and enrichment for each cell.
 for i in range(len(DAPT)):
     NumOfHub=int(np.max(DAPT[i,:,3]))
     NumOfHubsMat[i,0]=NumOfHub
@@ -67,6 +71,7 @@ for i in range(len(DAPT)):
     precentageInHubsJF[i,0]=DAPT[i,2,4]
     precentageInHubsCer[i,0]=DAPT[i,2,5]
 
+    # Compare RBPJ enrichment with H2B enrichment within the same hubs.
     eachHub_JF_over_Cer[i,0]=np.mean (   (DAPT[i,1:NumOfHub+1,1]/(DAPT[i,0,4]))/(DAPT[i,1:NumOfHub+1,2]/(DAPT[i,0,5]))  )
     
     VolOfHubs[i,0]=np.mean(DAPT[i,1:NumOfHub+1,0])
@@ -83,6 +88,7 @@ for i in range(len(DAPT)):
     
     
 
+# Repeat the cell summaries for RBPJ-.
 for i in range(len(RBPJmns)):
     NumOfHub=int(np.max(RBPJmns[i,:,3]))
     NumOfHubsMat[i,1]=NumOfHub
@@ -110,6 +116,7 @@ for i in range(len(RBPJmns)):
     Norm_Dev_cer[i,1]=np.std(RBPJmns[i,1:NumOfHub+1,2])/Cer_sig[i,1]
 
     
+# Repeat the cell summaries for RBPJ+.
 for i in range(len(RBPJpls)):
     NumOfHub=int(np.max(RBPJpls[i,:,3]))
     NumOfHubsMat[i,2]=NumOfHub
@@ -143,9 +150,11 @@ Norm_Dev_VolOfHubs=np.nan_to_num(Norm_Dev_VolOfHubs, nan=0.0)
 colorvec=['red','blue','magenta','green']
 samplevec=['Dll1-FC+, DAPT+','Dll1-FC+','Dll1-FC-','Dll1-FC+, Senexin+']
 
+# Voxel volume in cubic micrometres for these confocal images.
 volOfVoxelInMicron=0.003284566056
 
 #X is signal
+# Plot individual hub volumes against their signals and enrichment.
 plt.rcParams.update({'font.size': 10})
 plt.scatter(Scatter_RBPJmns[:,1],Scatter_RBPJmns[:,0]*volOfVoxelInMicron,s=2, linestyle='dashed', color=colorvec[2])
 #plt.ylim((0,4000))
@@ -184,6 +193,7 @@ plt.ylabel('Distribution')
 plt.grid(True)
 plt.show()
 
+# Compare pooled hub sizes with the mean size and relative spread in each cell.
 VolumeVec=Scatter_RBPJmns[:,0]*volOfVoxelInMicron
 Volume_meanOfEachCell=VolOfHubs[:,1]*volOfVoxelInMicron
 Norm_dev_of_vol=Norm_Dev_VolOfHubs[:,1]
@@ -194,6 +204,7 @@ plt.hist(Norm_dev_of_vol, bins=30,density=True, color='lightblue', edgecolor='bl
 plt.show()
 
 
+# Set an upper volume cutoff for the following histogram and box plot.
 Q1 = np.percentile(VolumeVec, 25)
 Q3 = np.percentile(VolumeVec, 75)
 

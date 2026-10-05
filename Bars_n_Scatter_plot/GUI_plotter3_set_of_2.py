@@ -1,3 +1,4 @@
+# Paste numeric spreadsheet columns to plot means, individual points, and SEM in pairs.
 %reset -f
 
 import tkinter as tk
@@ -19,6 +20,7 @@ def convert_to_numpy():
         df = pd.DataFrame(data)
         
         # Convert all values to numeric, coercing errors to NaN and dropping them
+        # A row is removed if any of its cells is empty or not numeric.
         df = df.apply(pd.to_numeric, errors='coerce').dropna()
         
         # Convert DataFrame to NumPy array
@@ -35,6 +37,7 @@ def convert_to_numpy():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to convert to numpy array: {e}")
 
+# Each column is one sample group; adjacent columns form a pair.
 def plot_data(data):
     # Convert to DataFrame for easier handling
     df = pd.DataFrame(data)
@@ -80,6 +83,7 @@ def plot_data(data):
     bars2 = ax.bar(x2, mean_group2, width=bar_width, color=excel_colors[1])
     
     # Plot scatter points for paired groups
+    # Spread the dots sideways so overlapping measurements are easier to see.
     for i, bar in enumerate(bars1):
         for measurement in group1.iloc[:, i].dropna():
             ax.plot(

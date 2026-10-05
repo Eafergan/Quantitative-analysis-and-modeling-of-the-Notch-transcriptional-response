@@ -1,3 +1,4 @@
+# Separate alternating two-channel frames into channel time series.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -11,6 +12,7 @@ import bioformats.omexml as ome
 import os
 import subprocess
 
+# Set the input path and the output paths below for this experiment.
 path=('E:\\work\\PyThis\\input')
 
 from os import listdir
@@ -22,6 +24,7 @@ onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 """
 
+# Use the first input file to read the frame count and pixel type.
 xml_string = bioformats.get_omexml_metadata(join(path,onlyfiles[0]))
 ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
 iome = ome.image(0) # e.g. first image
@@ -31,10 +34,13 @@ NumOfZ=iome.Pixels.get_SizeZ()
 PixelT=iome.Pixels.get_PixelType()
 
 
+# The output length is set to two time points in this copy.
 NumOfTReal=int(2);
+# Separate the channel time series for each input file.
 for x in onlyfiles:
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Even frames go to channel 1; odd frames go to channel 2.
     for t in range(NumOfT):
         if t%6==0:
             print(t)

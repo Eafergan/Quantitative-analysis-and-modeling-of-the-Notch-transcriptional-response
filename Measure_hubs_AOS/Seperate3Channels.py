@@ -1,3 +1,4 @@
+# Separate JF, Cerulean, and iRFP Z-stacks for mutant and wild-type RBPJ.
 %reset -f
 
 import bioformats
@@ -18,12 +19,14 @@ javabridge.call(rootLogger, "setLevel", "(Lch/qos/logback/classic/Level;)V", log
 
 
 
+# Process the AOS mutant (S) first; set the input and output folders before running.
 path=('D:\\Zeiss\\wt_vs_S_554_300ng\\S\\input\\')
 
 from os.path import isfile, join
 onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 
+# Read each mutant image and its number of Z slices.
 for x in onlyfiles:
     xml_string = bioformats.get_omexml_metadata(path+'\\'+x)
     ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
@@ -33,6 +36,7 @@ for x in onlyfiles:
     
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Save each Z slice to the matching JF, Cerulean, and iRFP files.
     for z in range(NumOfZ):
         tempimg1=rawfile.read(c=0,z=z,t=0,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
         bioformats.write_image(path[0:-6] + 'output\\channel1_JF\\'+x[:-4]+'.tiff', tempimg1, PixelT, c=0, z=z, t=0, size_c=1, size_z=NumOfZ, size_t=1, channel_names=None)
@@ -48,12 +52,14 @@ del x,path, onlyfiles
 
 
 
+# Repeat the channel separation for wild-type RBPJ.
 path=('D:\\Zeiss\\wt_vs_S_554_300ng\\wt\\input\\')
 
 from os.path import isfile, join
 onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 
+# Read each wild-type image and its number of Z slices.
 for x in onlyfiles:
     xml_string = bioformats.get_omexml_metadata(path+'\\'+x)
     ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
@@ -63,6 +69,7 @@ for x in onlyfiles:
     
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Save the three channels in the same Z order.
     for z in range(NumOfZ):
         tempimg1=rawfile.read(c=0,z=z,t=0,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
         bioformats.write_image(path[0:-6] + 'output\\channel1_JF\\'+x[:-4]+'.tiff', tempimg1, PixelT, c=0, z=z, t=0, size_c=1, size_z=NumOfZ, size_t=1, channel_names=None)

@@ -1,3 +1,5 @@
+# Compare hubs in cells expressing AOS mutant (S) or wild-type iRFP-RBPJ.
+# JF measures endogenous RBPJ; Cerulean marks H2B; iRFP measures added RBPJ.
 %reset -f
 
 import bioformats
@@ -28,6 +30,7 @@ javabridge.call(rootLogger, "setLevel", "(Lch/qos/logback/classic/Level;)V", log
 
 
 
+# Measure the AOS mutant cells first.
 path=('D:\\Zeiss\\wt_vs_S_554_300ng\\S\\input\\')
 
 from os.path import isfile, join
@@ -36,10 +39,12 @@ onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 #x=onlyfiles[1]
 
+# Keep one row per cell; the columns below hold hub counts, sizes, and signals.
 ResultsS=np.zeros((len(onlyfiles),12)) 
 structure_z = np.ones((3, 3, 3), dtype=bool)
 
 
+# Open each mutant image with its three channels and matching masks.
 for i in range(len(onlyfiles)):
     x=onlyfiles[i]
     xml_string = bioformats.get_omexml_metadata(path+'\\'+x)
@@ -56,6 +61,7 @@ for i in range(len(onlyfiles)):
 
 
     print (x)
+    # Build 3D arrays from 344 x 344 pixel slices; the last axis is Z.
     MaskNuc=np.zeros((344,344,NumOfZ))
     MaskHubs=np.zeros((344,344,NumOfZ))
     RFPRaw=np.zeros((344,344,NumOfZ))
@@ -88,11 +94,13 @@ for i in range(len(onlyfiles)):
     
     del rawfileiRFP,rawfileNucleusMask,rawfileHubsMask,rawfileJF,rawfileCer,rawfileNocleoliMask
     
+    # Keep nuclear label 3 and shrink the mask twice to remove its outer edge.
     MaskNuc=MaskNuc*(MaskNuc==3)/3 
     Eroded_nuc = ndimage.binary_erosion(MaskNuc, structure=structure_z)
     Eroded_nuc = ndimage.binary_erosion(Eroded_nuc, structure=structure_z)
     Nucleoli_mask_nucleus=Nucleoli_mask_nucleus*(Nucleoli_mask_nucleus==2)/2
     
+    # Fill holes slice by slice in both nuclear masks.
     for z in range(NumOfZ):
         filled_nucleus[:,:,z] = binary_fill_holes(Eroded_nuc[:,:,z])
         filled_nucleus_for_nucleoli[:,:,z] = binary_fill_holes(Nucleoli_mask_nucleus[:,:,z])
@@ -112,12 +120,14 @@ for i in range(len(onlyfiles)):
      
     MaskHubs=MaskHubs*(MaskHubs==2)/2
 
+    # Holes in the second nuclear mask mark the nucleoli.
     Nucleoli_mask_nucleoli=filled_nucleus_for_nucleoli-Nucleoli_mask_nucleus
     Nucleoli_mask_nucleoli=Nucleoli_mask_nucleoli*filled_nucleus
     
     #filter small nucleoli
     labeled_image, num_features = ndimage.label(Nucleoli_mask_nucleoli)
     component_sizes = ndimage.sum(Nucleoli_mask_nucleoli, labeled_image, range(num_features + 1))
+    # Keep nucleolar regions larger than 350 voxels for signal measurements.
     for n in range(len(component_sizes)):
         if component_sizes[n]>350:
             labeled_image[labeled_image==n]=1
@@ -127,9 +137,11 @@ for i in range(len(onlyfiles)):
     Nucleoli_measure=labeled_image
     del labeled_image, component_sizes ,num_features
     
+    # Use the nucleus without hubs or nucleoli as the reference region.
     Nuc=filled_nucleus-MaskHubs-Nucleoli_mask_nucleoli
     Nuc[Nuc < 0] = 0
     
+    # Apply each region mask to measure fluorescence in nucleoli, hubs, and nucleoplasm.
     JF_in_Nucleoli=JFRaw*Nucleoli_measure
     RFP_in_Nucleoli=RFPRaw*Nucleoli_measure
     
@@ -148,6 +160,7 @@ for i in range(len(onlyfiles)):
     
     labeled_image, num_of_hubs = label(MaskHubs)
     
+    # Save this cell's hub count, mean hub size in voxels, and mean signals.
     ResultsS[i,0]=num_of_hubs #num of hubs
     ResultsS[i,1]=np.sum(MaskHubs)/num_of_hubs #mean volume
     ResultsS[i,2]=np.sum(JF_in_Hubs)/np.sum(MaskHubs) #mean JF in hubs
@@ -178,6 +191,7 @@ print('wt')
 
 print('wt')
 
+# Repeat the same measurements for wild-type cells.
 path=('D:\\Zeiss\\wt_vs_S_554_300ng\\wt\\input\\')
 
 from os.path import isfile, join
@@ -186,6 +200,7 @@ Resultswt=np.zeros((len(onlyfiles),12))
 
 
 
+# Process each wild-type image using the same masks and measurements.
 for i in range(len(onlyfiles)):
     x=onlyfiles[i]
     xml_string = bioformats.get_omexml_metadata(path+'\\'+x)
@@ -202,6 +217,7 @@ for i in range(len(onlyfiles)):
 
 
     print (x)
+    # Use the same 344 x 344 pixel slice size for the wild-type stacks.
     MaskNuc=np.zeros((344,344,NumOfZ))
     MaskHubs=np.zeros((344,344,NumOfZ))
     RFPRaw=np.zeros((344,344,NumOfZ))
@@ -234,11 +250,13 @@ for i in range(len(onlyfiles)):
     
     del rawfileiRFP,rawfileNucleusMask,rawfileHubsMask,rawfileJF,rawfileCer,rawfileNocleoliMask
     
+    # Keep nuclear label 3 and shrink the mask twice, as above.
     MaskNuc=MaskNuc*(MaskNuc==3)/3 
     Eroded_nuc = ndimage.binary_erosion(MaskNuc, structure=structure_z)
     Eroded_nuc = ndimage.binary_erosion(Eroded_nuc, structure=structure_z)
     Nucleoli_mask_nucleus=Nucleoli_mask_nucleus*(Nucleoli_mask_nucleus==2)/2
     
+    # Fill holes in both nuclear masks before selecting the main nucleus.
     for z in range(NumOfZ):
         filled_nucleus[:,:,z] = binary_fill_holes(Eroded_nuc[:,:,z])
         filled_nucleus_for_nucleoli[:,:,z] = binary_fill_holes(Nucleoli_mask_nucleus[:,:,z])
@@ -264,6 +282,7 @@ for i in range(len(onlyfiles)):
     #filter small nucleoli
     labeled_image, num_features = ndimage.label(Nucleoli_mask_nucleoli)
     component_sizes = ndimage.sum(Nucleoli_mask_nucleoli, labeled_image, range(num_features + 1))
+    # Keep nucleolar regions larger than 350 voxels for signal measurements.
     for n in range(len(component_sizes)):
         if component_sizes[n]>350:
             labeled_image[labeled_image==n]=1
@@ -273,6 +292,7 @@ for i in range(len(onlyfiles)):
     Nucleoli_measure=labeled_image
     del labeled_image, component_sizes ,num_features
     
+    # Remove hubs and nucleoli to get the nucleoplasmic reference.
     Nuc=filled_nucleus-MaskHubs-Nucleoli_mask_nucleoli
     Nuc[Nuc < 0] = 0
     
@@ -294,6 +314,7 @@ for i in range(len(onlyfiles)):
 
     labeled_image, num_of_hubs = label(MaskHubs)
     
+    # Save the wild-type cell measurements in the same column order as ResultsS.
     Resultswt[i,0]=num_of_hubs #num of hubs
     Resultswt[i,1]=np.sum(MaskHubs)/num_of_hubs #mean volume
     Resultswt[i,2]=np.sum(JF_in_Hubs)/np.sum(MaskHubs) #mean JF in hubs
@@ -317,15 +338,19 @@ for i in range(len(onlyfiles)):
     del CerRaw, RFPRaw, JFRaw , TotalJF, TotaliRFP, TotaliRFPMask
 
 
+# Compare mean hub volume with nucleoplasmic iRFP signal.
 X_wt_RFP_nuc=Resultswt[:,7]
 X_S_RFP_nuc=ResultsS[:,7]
 
+# Convert mean hub volume from voxels to cubic micrometres.
 Y_wt_Vol=Resultswt[:,1]*0.003284566056
 Y_S_Vol=ResultsS[:,1]*0.003284566056
 
+# Also fit wild-type cells after excluding mean hub volumes of 10 cubic micrometres or more.
 X_wt_RFP_nuc_capped=X_wt_RFP_nuc[Y_wt_Vol<10]
 Y_wt_Vol_capped=Y_wt_Vol[Y_wt_Vol<10]
 
+# Add an intercept and fit a line for each group.
 X_wt_RFP_nuc_sm= sm.add_constant(X_wt_RFP_nuc)
 X_S_RFP_nuc_sm= sm.add_constant(X_S_RFP_nuc)
 X_wt_RFP_nuc_capped_sm= sm.add_constant(X_wt_RFP_nuc_capped)
@@ -404,6 +429,7 @@ p_value_intercept_capped_vs_S
 
 #compare the intercept_shifted
 
+# Shift the signal axis to compare fitted hub volumes at an iRFP intensity of 50.
 X_S_RFP_nuc_sm_50= sm.add_constant(X_S_RFP_nuc-50)
 X_wt_RFP_nuc_capped_sm_50= sm.add_constant(X_wt_RFP_nuc_capped-50)
 

@@ -1,3 +1,4 @@
+# Measure nuclear NICD and total segmented Notch signal over time.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -60,6 +61,7 @@ NumOfTReal=int(NumOfT/2);
 for x in onlyfiles:
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Even frames go to channel 1; odd frames go to channel 2.
     for t in range(NumOfT):
         if t%6==0:
             print(t)
@@ -81,6 +83,7 @@ filesCH1 = " ".join(f'"{f}"' for f in onlyfilesFullPath)
 onlyfilesFullPath=['D:/AOS/1st_daptWashout/1st_daptWashout_E/output/channel2/'+string[:-8] + '.tiff' for string in onlyfiles ]
 filesCH2 = " ".join(f'"{f}"' for f in onlyfilesFullPath)
 
+# Run the trained ilastik models for nuclear masks and Notch background masks.
 os.chdir("C:\\Program Files\\ilastik-1.4.0rc8-gpu")
 commandCh1 = 'ilastik.exe --headless --project="D:/work/ilastiks/NLS_Cer_On_Notch/NLS_Cer_On_Notch.ilp" --export_source="Simple Segmentation"  'f' {filesCH1}'
 os.system(commandCh1)
@@ -89,6 +92,7 @@ commandCh2 = 'ilastik.exe --headless --project="D:/work/ilastiks/NotchSignalOver
 os.system(commandCh2)
 
 
+# Rows are time points and columns are input files.
 resultsCh1=np.zeros((NumOfTReal,len(onlyfiles) )) 
 resultsCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 resultsChAllofNotch2=np.zeros((NumOfTReal,len(onlyfiles) )) 
@@ -97,6 +101,7 @@ bgCh2=np.zeros((NumOfTReal,len(onlyfiles) ))
 MaskCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 
 
+# Load both the nuclear masks and the Notch masks for each file.
 for x in range(len(onlyfiles)):
     nameoffile=  onlyfiles[x]  
     print(nameoffile[:-8]) 
@@ -105,6 +110,7 @@ for x in range(len(onlyfiles)):
     IlastikNotchBG = h5py.File(path[0:-6] + 'output\\channel2\\Ilastik\\'+nameoffile[:-8]+'.h5')
     MaskNotchBG = IlastikNotchBG['exported_data']
     
+    # Read both fluorescence channels and their masks at the same time point.
     for t in range(NumOfTReal):
         tempmask=Mask[t,:,:,0]
         tempbgmaskNotch=MaskNotchBG[t,:,:,0]
@@ -113,6 +119,7 @@ for x in range(len(onlyfiles)):
         tempmeasure1=rawfile1.read(c=0,z=0,t=t,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
         tempmeasure2=rawfile2.read(c=0,z=0,t=t,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
 
+        # Label 2 marks signal regions; label 1 in the Notch mask marks background.
         tempmask=tempmask*(tempmask==2)/2
         tempbgmask=tempbgmaskNotch*(tempbgmaskNotch==1)*1
         tempNotchMask=tempbgmaskNotch*(tempbgmaskNotch==2)/2
@@ -124,6 +131,7 @@ for x in range(len(onlyfiles)):
         bgMasked1=tempbgmask*tempmeasure1
         bgMasked2=tempbgmask*tempmeasure2
 
+        # Keep positive pixels below the 90th percentile in each region and channel.
         Sig90Ch1=measureMasked1[(measureMasked1<np.percentile(measureMasked1[measureMasked1>0], 90)) & (measureMasked1>0)]
         Bg90Ch1=bgMasked1[(bgMasked1<np.percentile(bgMasked1[bgMasked1>0], 90)) & (bgMasked1>0)]
 
@@ -131,6 +139,7 @@ for x in range(len(onlyfiles)):
         Bg90Ch2=bgMasked2[(bgMasked2<np.percentile(bgMasked2[bgMasked2>0], 90)) & (bgMasked2>0)]
         Sig90AllofCh2=measureAllNotch2[(measureAllNotch2<np.percentile(measureAllNotch2[measureAllNotch2>0], 90)) & (measureAllNotch2>0)]
 
+        # Divide the filtered sums by the full mask areas, then subtract background.
         averageSig1=np.sum(np.float64(Sig90Ch1))/np.sum(np.float64(tempmask))
         averageBg1=np.sum(np.float64(Bg90Ch1))/np.sum(np.float64(tempbgmask)) ##maybe change size to np.count_nonzero
         averageSig2=np.sum(np.float64(Sig90Ch2))/np.sum(np.float64(tempmask))
@@ -147,6 +156,7 @@ for x in range(len(onlyfiles)):
 
 
 
+        # Save the masked regions so the measurements can be checked visually.
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__measureCh2.tif', measureMasked2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__bgCh2.tif', bgMasked2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__aLLnOTCH.tif', measureAllNotch2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
@@ -164,7 +174,7 @@ javabridge.kill_vm()
 
 
 
-### so far the results were "resultsCh1", now the for these results to exponential decay.
+# Exploratory curve fits below; resampling is in NICD_PulseChase_fit.py.
 
 
 df2 = pd.read_excel('D:\\PulseChaseOnDll\\CDE.xlsx',sheet_name='Sheet2')
@@ -182,6 +192,7 @@ normalized_matrix = resultsCh2 / first_time_points[np.newaxis, :]
 
 
 
+# Use the spreadsheet summaries for the exploratory fits below.
 normalized_matrix[:,:]=flippedArray[1:146,20:23]
 ErrorMat[:,:]=flippedArray[1:146,26:29]
 
@@ -198,6 +209,7 @@ C3Mat=np.zeros(3)
 StErrorC1=np.zeros(3)
 StErrorC2=np.zeros(3)
 StErrorC3=np.zeros(3)
+# Fit a two-component decay to each of the three condition traces.
 for x in range(3):
     params, covariance = curve_fit(exp_decay, vec, normalized_matrix[:, x],bounds=([0.6,0,0],[1,1,1]))
     y_pred = exp_decay( vec, *params)
@@ -212,6 +224,7 @@ for x in range(3):
     print(x)
     del params, covariance, y_pred, r_squared, Sterr
     
+# Also fit a single decay with a plateau to the third condition.
 params_sin, covariance_sin = curve_fit(Single_exp_decay, vec, normalized_matrix[:, 2],bounds=([0,0],[1,1]) )
 C1Mat_sin=params_sin[0]
 C2Mat_sin=params_sin[1]
@@ -221,6 +234,7 @@ plt.plot(vec,normalized_matrix[ :, 2],linestyle='dashed')
 plt.show()
 
 
+# Plot the fitted curves over the measured signals and their error bands.
 for i in [0,1,2]:
     y_pred = exp_decay( vec,  C1Mat[i],C2Mat[i], C3Mat[i])
     r_squared = r2_score( normalized_matrix[ :, i], y_pred)
@@ -281,6 +295,7 @@ HalfLifeC2=np.log(2)/C2Mat[:]
 HalfLifeC3=np.log(2)/C3Mat[:]
 
 
+# Plot the mask-area changes for the three conditions.
 for i in [0,1,2]:
     plt.fill_between(vec, MaskGrowthMat[ :, i]-MaskGrowthErrorMat[ :, i], MaskGrowthMat[ :, i]+MaskGrowthErrorMat[ :, i],alpha=0.3)
     plt.legend(['DLL+DAPT','DLL','PBS'])
@@ -304,6 +319,7 @@ AverageMat=np.zeros((NumOfTReal,len(onlyfiles) )) #0is DAPT 1 is dE 2 is dR 3 is
 DeviationMat=np.zeros((NumOfTReal,len(onlyfiles) )) #0is DAPT 1 is dE 2 is dR 3 is H2B
 
 
+# Average the selected recordings within each condition.
 AverageMat[:,0]=np.average(normalized_matrix[:,[0,4,8,12]],axis=1)
 AverageMat[:,1]=np.average(normalized_matrix[:,[1,5,9,13]],axis=1)
 AverageMat[:,2]=np.average(normalized_matrix[:,[2,6,10,14]],axis=1)
@@ -331,6 +347,7 @@ C2Mat_Avg=np.zeros(len(onlyfiles))
 C3Mat_Avg=np.zeros(len(onlyfiles))
 
 
+# Fit the averaged traces and store their parameters.
 for x in range(len(onlyfiles)):
     params, covariance = curve_fit(exp_decay, vec, normalized_matrix_Avg[:, x], bounds=([0.6,0,0],[1,1,1]))
     y_pred = exp_decay( vec, *params)

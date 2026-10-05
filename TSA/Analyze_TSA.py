@@ -1,3 +1,4 @@
+# Summarize hub measurements after TSA treatment.
 %reset -f
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ Scatter_TSA = np.load('Scatter_TSA.npy')
 
 
 
+# Keep the recorded hub rows and leave out the unused rows.
 Scatter_TSA = Scatter_TSA[0:1499,:]
 
 
@@ -24,6 +26,7 @@ Norm_Scatter_TSA = Norm_Scatter_TSA[0:1499,:]
 #Results[:,0,0:2] are averages Results[:,-1,0:2] are st dev
 # 0 is DAPT 1 is RBPJ- 2 is RBPJ+
 
+# Keep one value per cell in each summary array.
 NumOfHubsMat=np.zeros((120))
 VolOfHubs=np.zeros((120))
 Norm_Dev_VolOfHubs=np.zeros((120))
@@ -52,6 +55,7 @@ nucleoliCer=np.zeros((120))
 eachHub_JF_over_Cer=np.zeros((120))
 
 
+# Calculate mean hub size and fluorescence enrichment for each cell.
 for i in range(len(TSA)):
     NumOfHub=int(np.max(TSA[i,:,3]))
     NumOfHubsMat[i]=NumOfHub
@@ -65,6 +69,7 @@ for i in range(len(TSA)):
     precentageInHubsJF[i]=TSA[i,2,4]
     precentageInHubsCer[i]=TSA[i,2,5]
 
+    # Compare RBPJ enrichment with H2B enrichment within the same hubs.
     eachHub_JF_over_Cer[i]=np.mean (   (TSA[i,1:NumOfHub+1,1]/(TSA[i,0,4]))/(TSA[i,1:NumOfHub+1,2]/(TSA[i,0,5]))  )
     
     VolOfHubs[i]=np.mean(TSA[i,1:NumOfHub+1,0])
@@ -80,6 +85,7 @@ for i in range(len(TSA)):
     
     
 
+# Resample the summary values below to estimate the fractional signal decrease.
 TSA_JF_over_cer=np.zeros((2000,2))
 for i in range(2000): #this bootstrap calculate how much weaker the signal after TSA
 #JFtsa-:mean= 1.870979828 sterr=0.015846335; JFtsa+:mean=1.792953182, sterr=0.025376414
@@ -91,6 +97,7 @@ for i in range(2000): #this bootstrap calculate how much weaker the signal after
     TSA_JF_over_cer[i,0]=(randJFmns-randJFpls)/randJFmns
     TSA_JF_over_cer[i,1] =(randCermns-randCerpls)/randCermns
 
+# Summarize the resampled signal drops with means and percentile limits.
 meanJF_how_weak=np.mean(TSA_JF_over_cer[:,0])
 meanCer_how_weak=np.mean(TSA_JF_over_cer[:,1])
 

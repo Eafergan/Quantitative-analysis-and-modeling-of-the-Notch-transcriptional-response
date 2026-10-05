@@ -1,3 +1,4 @@
+# Fit RBPJ decay and estimate half-life variation by resampling.
 from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
@@ -6,11 +7,12 @@ import time
 
 #values from previus fit are DAPT[0.00033995,0.0242347,0.885518], DLL:[0.0004781,0.02715,0.06908] PBS:[0.00030004,0.06908742,0.88663632]
 
-def exp_decay(x, C1,C2): #C1 is ratio, C2 is Lambda for 1 and C3 is for 2, different than in the PPT
+def exp_decay(x, C1,C2): # C1 is the decay rate per minute; C2 is the remaining signal plateau.
     return  (1-C2)*np.exp(-x*C1) + C2
 
 
 
+# Score a trial curve by summing its squared differences from the data.
 def scorer(C1,C2,y):
     global vec
     distance=0
@@ -19,6 +21,7 @@ def scorer(C1,C2,y):
     distance=sum(x ** 2 for x in (distance_vec))
     return distance
 
+# Refine the decay-rate grid over 16 rounds; the plateau grid stays fixed.
 def C1C2Finder(yvec):
     global vec
     vecC1=np.linspace(0, 1, num=11)
@@ -27,11 +30,13 @@ def C1C2Finder(yvec):
     resultsC1score=np.zeros((11))
     resultsC1index=np.zeros((16))
     for i in range(len(resultsC1index)):
+        # Try 51 plateau values for each of the 11 trial decay rates.
         for c1 in range(11):
             for c2 in range(51):
                 resultsC2[c2]=scorer(vecC1[c1],vecC2[c2], yvec)
             resultsC1score[c1]=scorer(vecC1[c1],vecC2[np.argmin(resultsC2)] , yvec)
         resultsC1index[i]=np.argmin(resultsC1score)
+        # Narrow the rate range around the lowest score for the next round.
         if resultsC1index[i]>8:
             upperC1=vecC1[-1]
             lowerC1=vecC1[5]
@@ -48,13 +53,16 @@ def C1C2Finder(yvec):
     return vecC1[np.argmin(resultsC1score)],vecC2[np.argmin(resultsC2)]
 
  
+# Draw a new time course using the supplied mean and error at each time point.
 def newMatGen(normalized_matrix,ErrorMat):
     newMat=np.zeros_like(normalized_matrix)
+    # Work through each condition and time point to draw a new dataset.
     for sample in range(len(normalized_matrix[0,:])):
         for i in range(len(normalized_matrix[:,0])):
             newMat[i,sample]=np.random.normal(normalized_matrix[i,sample], ErrorMat[i,sample])
     return newMat
 
+# One bootstrap iteration draws a dataset and fits all four conditions.
 def IterationFunction(i):
     global normalized_matrix, ErrorMat
     ReturnResult=np.zeros((2,4))
@@ -73,9 +81,11 @@ NumOfTReal=145
 normalized_matrix=np.zeros((NumOfTReal,4 )) 
 ErrorMat=np.zeros((NumOfTReal,4 )) 
 
+# Read the four condition means and their errors from the selected spreadsheet columns.
 normalized_matrix[:,:]=flippedArray[1:146,24:28]
 ErrorMat[:,:]=flippedArray[1:146,30:34]
 
+# Time is in minutes, with one measurement every 20 minutes.
 vec = np.linspace(0, (NumOfTReal-1)*20, num=NumOfTReal)
 
 
@@ -95,7 +105,9 @@ vec = np.linspace(0, (NumOfTReal-1)*20, num=NumOfTReal)
 # runtime=end_time_par-start_time_par
 
 
+# Run 500 resampled fits and keep both fitted parameters for each condition.
 num_iterations=500
+# Store results by iteration, parameter (rate or plateau), and condition.
 results=np.zeros((num_iterations,2,4))
 
 
@@ -110,6 +122,7 @@ C1std=np.zeros((4)) #0 is mean 1 is std
 C2mean=np.zeros((4)) #0 is mean 1 is std
 C2std=np.zeros((4))
 
+# Summarize the spread of fitted parameters for each condition.
 for i in range(4):  
     C1mean[i]=np.mean(results[:,0,i])
     C1std[i]=np.std(results[:,0,i])
@@ -118,6 +131,7 @@ for i in range(4):
  
 
 
+# Convert the mean rate plus or minus one SD to half-life limits.
 HalfLifeplus=(np.log(2)/(C1mean-C1std))
 HalfLifeminus=(np.log(2)/(C1mean+C1std))
 HalfLifeAVG=(HalfLifeplus+HalfLifeminus)*0.5
@@ -127,6 +141,7 @@ HalfLifeDEV=(HalfLifeplus-HalfLifeminus)*0.5
 colorvec=['red','blue','magenta','green']
 samplevec=['Dll1-FC+, DAPT+','Dll1-FC+','Dll1-FC-','Dll1-FC+, Senexin+']
 
+# Plot curves from the mean parameters with the measured error bands.
 plt.rcParams.update({'font.size': 14})
 y_pred = exp_decay( vec,  C1mean[2],C2mean[2])
 plt.plot(vec,y_pred,linestyle='dashed',label=samplevec[2], color=colorvec[2])

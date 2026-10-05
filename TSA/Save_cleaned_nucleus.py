@@ -1,3 +1,4 @@
+# Keep JF signal inside the main nucleus and save the cleaned image and mask.
 %reset -f
 
 import bioformats
@@ -24,6 +25,7 @@ javabridge.call(rootLogger, "setLevel", "(Lch/qos/logback/classic/Level;)V", log
 
 
 
+# Set the input path to match the separated channels and ilastik masks.
 path=('D:\\Zeiss\\TSA2uM\\input\\')
 
 from os.path import isfile, join
@@ -32,6 +34,7 @@ onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 x=onlyfiles[1]
 
+# Open each image with its matching JF channel and nuclear mask.
 for x in onlyfiles:
     xml_string = bioformats.get_omexml_metadata(path+'\\'+x)
     ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
@@ -42,6 +45,7 @@ for x in onlyfiles:
     rawfileCer = bioformats.ImageReader(join(path[:-6]+'output\\channel2_Cer\\' + x+ 'f'))
     rawfileMask = bioformats.ImageReader(join(path[:-6]+'output\\channel2_Cer\\Ilastik\\' + x+ 'f'))
     print (x)
+    # Build a 3D stack from the 344 x 344 pixel slices.
     Mask=np.zeros((344,344,NumOfZ))
     JF=np.zeros((344,344,NumOfZ))
     
@@ -52,6 +56,7 @@ for x in onlyfiles:
     rawfileJF.close()
     del z
     
+    # Keep the largest connected region labelled as nucleus.
     tempmask=Mask
     tempmask=tempmask*(tempmask==3)/3 #this creates an image of the ilastik nuclues preditction alone
     labeled_image, num_features = label(tempmask)
@@ -64,11 +69,13 @@ for x in onlyfiles:
     nucleus=labeled_image*(labeled_image==largest_component)/largest_component
     del labeled_image, component_sizes, num_features, tempmask, non_zero_component_sizes, largest_component
     
+    # Fill holes in each nuclear slice before masking the JF signal.
     filled_nucleus=np.zeros((344,344,NumOfZ))
     for z in range(NumOfZ):
         filled_nucleus[:,:,z] = binary_fill_holes(nucleus[:,:,z])
     Clean_JF=JF*filled_nucleus
     
+    # Save every cleaned slice and its mask in separate output stacks.
     for z in range(NumOfZ):  #Ilastik marked the Z slices as T slices, this part loads the images along all z slices
         bioformats.write_image(path[0:-6] + 'output\\cleaned\\'+x, Clean_JF[:,:,z],  PixelT, c=0, z=z, t=0, size_c=1, size_z=NumOfZ, size_t=1, channel_names=None)
         bioformats.write_image(path[0:-6] + 'output\\cleanedMask\\'+x, filled_nucleus[:,:,z],  PixelT, c=0, z=z, t=0, size_c=1, size_z=NumOfZ, size_t=1, channel_names=None)

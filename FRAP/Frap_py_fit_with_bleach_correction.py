@@ -1,3 +1,4 @@
+# Fit FRAP recovery traces with a term for bleaching during imaging.
 %reset -f
 
 
@@ -8,6 +9,7 @@ from scipy.optimize import curve_fit
 from scipy.optimize import minimize
 
 
+# C1: recovery rate; C2: recovery amplitude; C3: bleaching rate.
 def exp_recovary(x, C1,C2,C3): 
     return  C2*(1-np.exp(-x*C1))*np.exp(-C3*x)
 
@@ -16,6 +18,7 @@ def T_half(x, C1, C2, C3, target_value):
 
 #####
 
+# Load the control, nucleoplasm, and hub traces from the Excel workbook.
 Con_nuc_df = pd.read_excel(r'D:\Zeiss\Frap\FrapXLS.xlsx',sheet_name='Control size of nucFrap')
 Con_nuc=Con_nuc_df.to_numpy()
 
@@ -35,6 +38,7 @@ del Con_nuc_df, Con_hub_df, nuc_df, hub_df
 #####
 
 #####
+# Split the spreadsheet into conditions; each column is a separate trace.
 Con_nuc_DAPT=Con_nuc[2:602,0:12]
 Con_nuc_RBPJmns=Con_nuc[2:602,14:26]
 Con_nuc_RBPJpls=Con_nuc[2:602,28:40]
@@ -81,6 +85,7 @@ hub_RBPJpls=hub_RBPJpls.astype(float)
 
 ####
 
+# Keep the first signal value from each trace as the prebleach reference.
 frst_Con_nuc_DAPT=Con_nuc_DAPT[0,:]
 frst_Con_nuc_RBPJmns=Con_nuc_RBPJmns[0,:]
 frst_Con_nuc_RBPJpls=Con_nuc_RBPJpls[0,:]
@@ -102,6 +107,7 @@ frst_hub_RBPJpls=hub_RBPJpls[0,:]
 
 ###### normalization
 
+# Normalize each trace to its prebleach signal.
 Norm_Con_nuc_DAPT=Con_nuc_DAPT[1:600,:]/Con_nuc_DAPT[0,:]
 Norm_Con_nuc_RBPJmns=Con_nuc_RBPJmns[1:600,:]/Con_nuc_RBPJmns[0,:]
 Norm_Con_nuc_RBPJpls=Con_nuc_RBPJpls[1:600,:]/Con_nuc_RBPJpls[0,:]
@@ -111,6 +117,7 @@ Norm_Con_hub_DAPT=Con_hub_DAPT[1:600,:]/Con_hub_DAPT[0,:]
 Norm_Con_hub_RBPJmns=Con_hub_RBPJmns[1:600,:]/Con_hub_RBPJmns[0,:]
 Norm_Con_hub_RBPJpls=Con_hub_RBPJpls[1:600,:]/Con_hub_RBPJpls[0,:]
 
+# Subtract the first postbleach signal so recovery starts at zero.
 Norm_nuc_DAPT=(nuc_DAPT[1:600,:]-nuc_DAPT[1,:])/nuc_DAPT[0,:]
 Norm_nuc_RBPJmns=(nuc_RBPJmns[1:600,:]-nuc_RBPJmns[1,:])/nuc_RBPJmns[0,:]
 Norm_nuc_RBPJpls=(nuc_RBPJpls[1:600,:]-nuc_RBPJpls[1,:])/nuc_RBPJpls[0,:]
@@ -127,20 +134,26 @@ Norm_hub_RBPJpls=(hub_RBPJpls[1:600,:]-hub_RBPJpls[1,:])/hub_RBPJpls[0,:]
 
 
 
+# Time is in seconds; traces 10-14 use the longer acquisition interval.
 vec = np.linspace(0, 30-0.1, num=599)
 vec2 = np.linspace(0, 39.6-0.132, num=599)
 
+# Store results by condition, region, trace, and fitted parameter.
+# Region 0 is nucleoplasm; region 1 is hubs.
 ResultMat=np.zeros((4,2,20,3))
 HalfLifeMat=np.zeros((4,2,20))
 
 bound1=[0,0,0],[30,1,30]
 
+# Larger sigma values give the later points less weight in the fit.
 weights= np.ones_like(vec)
 weights[300:599]=100
 
+# Find the time when the fitted recovery reaches half of C2.
 target_value=0.5
 
 ####
+# Fit each trace separately and save its parameters and half-recovery time.
 for i in range(20):
     print(i)
     print(9<i<15)
@@ -219,6 +232,7 @@ for i in range(20):
          HalfLifeMat[2,1,i] = resultTemp.x[0]
     
  
+# Average the traces at each time point for the summary plots.
 mean_NucRBPJmns=np.mean(Norm_nuc_RBPJmns,1)
 mean_hubRBPJmns=np.mean(Norm_hub_RBPJmns,1)
 
@@ -228,6 +242,7 @@ mean_hubRBPJpls=np.mean(Norm_hub_RBPJpls,1)
 mean_NucDAPT=np.mean(Norm_nuc_DAPT,1)
 mean_hubDAPT=np.mean(Norm_hub_DAPT,1)
 
+# Calculate the standard error across the 20 traces.
 dev_NucRBPJmns=np.std(Norm_nuc_RBPJmns,1)
 dev_NucRBPJmns=dev_NucRBPJmns/(20**0.5)
 
@@ -236,6 +251,7 @@ dev_HubsRBPJmns=dev_HubRBPJmns/(20**0.5)
 
 # mobileNucRBPJmns=frst_nuc_RBPJmns-np.max(nuc_RBPJmns[1:-1,:])
 
+# Choose a trace to inspect alongside the fitted recovery curve.
 sample=19
 colorvec=['red','blue','magenta','green']
 

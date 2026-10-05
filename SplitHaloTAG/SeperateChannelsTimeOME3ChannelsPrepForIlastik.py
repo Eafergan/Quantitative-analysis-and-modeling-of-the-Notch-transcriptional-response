@@ -1,3 +1,4 @@
+# Separate repeating three-channel frames into channel time series.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -11,6 +12,7 @@ import bioformats.omexml as ome
 import os
 import subprocess
 
+# Set the input path and the output paths below for this experiment.
 path=('C:\\work\\PyThis\\input')
 projectLoc=('C:\\work\\PyThis\\MyProject.ilp')
 
@@ -24,6 +26,7 @@ ilastikfolder=('C:\\Program Files\\ilastik-1.4.0b20-gpu\\')
 
 """
 
+# Use the first input file to read the frame count and pixel type.
 xml_string = bioformats.get_omexml_metadata(join(path,onlyfiles[0]))
 ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
 iome = ome.image(0) # e.g. first image
@@ -32,10 +35,13 @@ NumOfT=iome.Pixels.get_SizeT()
 NumOfZ=iome.Pixels.get_SizeZ()
 PixelT=iome.Pixels.get_PixelType()
 
+# Every three stored frames make one time point.
 NumOfTReal=int(NumOfT/3);
+# Separate the channel time series for each input file.
 for x in onlyfiles:
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Send each frame to channel 1, 2, or 3 based on its place in the sequence.
     for t in range(NumOfT):
         if t%6==0:
             print(t)

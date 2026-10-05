@@ -1,3 +1,4 @@
+# Measure hub size and JF/Cerulean signal using the saved ilastik masks.
 %reset -f
 
 import bioformats
@@ -24,6 +25,7 @@ javabridge.call(rootLogger, "setLevel", "(Lch/qos/logback/classic/Level;)V", log
 
 
 
+# Set the input path for the condition being measured.
 path=('D:\\Zeiss\\TSA2uM\\input\\')
 
 from os.path import isfile, join
@@ -36,6 +38,7 @@ Norm_Scatter=np.zeros((2000,3))
 
 counter=0 #to get a single vector of all hub
 
+# Process each image with its matching fluorescence channels and masks.
 for x in range(len(onlyfiles)):
     nameOfFile=onlyfiles[x]
     xml_string = bioformats.get_omexml_metadata(path+'\\'+nameOfFile)
@@ -52,6 +55,7 @@ for x in range(len(onlyfiles)):
 
 
     print (nameOfFile)
+    # These stacks have 344 x 344 pixels per slice; the last axis is Z.
     Mask=np.zeros((344,344,NumOfZ))
     JF=np.zeros((344,344,NumOfZ))
     Cer=np.zeros((344,344,NumOfZ))
@@ -74,9 +78,11 @@ for x in range(len(onlyfiles)):
     del z
        
 
+    # Keep hub label 2 and give each connected hub its own number.
     Mask=Mask*(Mask==2)/2 
     labeled_image, num_features = label(Mask)
     
+    # Exclude hubs and nucleoli from the nucleoplasmic reference.
     MaskJustNucleus_woHubs=MaskJustNucleus-Mask
     MaskJustNucleus_woHubs=MaskJustNucleus_woHubs*(MaskJustNucleus_woHubs==1)/1
 
@@ -90,6 +96,7 @@ for x in range(len(onlyfiles)):
     CerInNucleoli=MaskJustNucleoli*Cer
     JF_in_nucleoli=MaskJustNucleoli*JF
     
+    # Save the reference signals and region sizes for this cell.
     Results[x,0,4]=np.sum(CleanJF)/np.sum(MaskJustNucleus_woNucleoli) #mean signal without hubs and nocleoli
     Results[x,0,5]=np.sum(CleanCer)/np.sum(MaskJustNucleus_woNucleoli)
     Results[x,1,4]=np.sum(JF_in_nucleoli)/np.sum(MaskJustNucleoli) #mean signal in nucleoli
@@ -104,13 +111,14 @@ for x in range(len(onlyfiles)):
     EntireCellSignalCer=MaskJustNucleus*Cer
 
     
-    Results[x,2,4]=np.sum(AllHubsJF)/np.sum(EntireCellSignalJF) #mean signal in nucleoli
+    Results[x,2,4]=np.sum(AllHubsJF)/np.sum(EntireCellSignalJF) # Fraction of total nuclear JF signal in hubs.
     Results[x,2,5]=np.sum(AllHubsCer)/np.sum(EntireCellSignalCer)
 
     del AllHubsJF,AllHubsCer, EntireCellSignalJF, EntireCellSignalCer
     
     
     
+    # Measure each hub separately and add it to the pooled scatter arrays.
     for i in range(1,num_features+1):
     #    print(i)
         Results[x,i,3]=i
@@ -123,6 +131,7 @@ for x in range(len(onlyfiles)):
         Scatter[counter,0]=Results[x,i,0]
         Scatter[counter,1]=Results[x,i,1]
         Scatter[counter,2]=Results[x,i,2]
+        # Hub enrichment is the hub signal divided by the nucleoplasmic signal.
         Norm_Scatter[counter,0]=Results[x,i,0]
         Norm_Scatter[counter,1]=Results[x,i,1]/Results[x,0,4]
         Norm_Scatter[counter,2]=Results[x,i,2]/Results[x,0,5]
@@ -130,6 +139,7 @@ for x in range(len(onlyfiles)):
         
     
     
+    # Save JF and the hub mask together so the measured regions can be checked.
     for z in range(NumOfZ):         #Ilastik marked the Z slices as T slices, this part loads the images along all z slices
         bioformats.write_image(path[0:-6] + 'output\\control\\'+nameOfFile, JF[:,:,z],  PixelT, c=0, z=z, t=0, size_c=2, size_z=NumOfZ, size_t=1, channel_names=None)
         bioformats.write_image(path[0:-6] + 'output\\control\\'+nameOfFile, Mask[:,:,z],  PixelT, c=1, z=z, t=0, size_c=2, size_z=NumOfZ, size_t=1, channel_names=None)

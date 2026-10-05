@@ -1,3 +1,4 @@
+# Paste numeric spreadsheet columns to plot means, individual points, and SEM in groups of three.
 %reset -f
 
 import tkinter as tk
@@ -19,6 +20,7 @@ def convert_to_numpy():
         df = pd.DataFrame(data)
 
         # Convert all values to numeric, coercing errors to NaN and dropping them
+        # A row is removed if any of its cells is empty or not numeric.
         df = df.apply(pd.to_numeric, errors='coerce').dropna()
 
         # Convert DataFrame to NumPy array
@@ -35,6 +37,7 @@ def convert_to_numpy():
     except Exception as e:
         messagebox.showerror("Error", f"Failed to convert to numpy array: {e}")
 
+# Each column is one sample group; every three columns form a set.
 def plot_data(data):
     # Convert to DataFrame for easier handling
     df = pd.DataFrame(data)
@@ -71,6 +74,7 @@ def plot_data(data):
             x_pos = x_center + offsets[j]
             bar = ax.bar(x_pos, means.iloc[col_index], width=bar_width_full, color=excel_colors[j % len(excel_colors)])
             # Plot scatter points for this column
+            # Spread the dots sideways so overlapping measurements are easier to see.
             for measurement in df.iloc[:, col_index].dropna():
                 ax.plot(x_pos + random.uniform(-dot_spread, dot_spread),
                         measurement,

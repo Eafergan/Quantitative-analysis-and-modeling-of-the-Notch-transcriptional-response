@@ -1,3 +1,4 @@
+# Rebuild channel 1 and 2 mask time series from separate ilastik exports.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -23,6 +24,7 @@ onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 """
 
+# Read the original recording length to rebuild the mask time series.
 xml_string = bioformats.get_omexml_metadata(join(path,onlyfiles[0]))
 ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
 iome = ome.image(0) # e.g. first image
@@ -30,10 +32,13 @@ NumOfC=iome.Pixels.get_SizeC()
 NumOfT=iome.Pixels.get_SizeT()
 NumOfZ=iome.Pixels.get_SizeZ()
 PixelT=iome.Pixels.get_PixelType()
+# The original recording stores three channel frames per time point.
 
 NumOfTReal=int(NumOfT/3);
+# Rebuild the mask stacks for each original input file.
 for x in onlyfiles:
     print (x)
+    # Write channel 1 and 2 masks in time order; channel 3 is skipped.
     for t in range(NumOfT):
         print (t)
         timeToFile=int((t-(t%3))/3)

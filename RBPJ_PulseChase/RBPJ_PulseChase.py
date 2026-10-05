@@ -1,3 +1,4 @@
+# Extract nuclear RBPJ fluorescence over time using the Cerulean masks.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -56,6 +57,7 @@ NumOfTReal=int(NumOfT/2);
 for x in onlyfiles:
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Even frames go to channel 1; odd frames go to channel 2.
     for t in range(NumOfT):
         if t%6==0:
             print(t)
@@ -72,32 +74,38 @@ del x
 
 
 
+# Rows are time points and columns are input files.
 resultsCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 bgCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 MaskCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 
 
+# Load the nuclear mask time series for each input file.
 for x in range(len(onlyfiles)):
     nameoffile=  onlyfiles[x]  
     print(nameoffile[:-8]) 
     Ilastik = h5py.File(path[0:-6] + 'output\\channel1\\Ilastik\\'+nameoffile[:-8]+'.h5')
     Mask = Ilastik['exported_data']
  
+    # Measure RBPJ and background using the mask from the same time point.
     for t in range(NumOfTReal):
         tempmask=Mask[t,:,:,0]
         tempbgmask=Mask[t,:,:,0]
         rawfile2 = bioformats.ImageReader( path[0:-6] + 'output\\channel2\\'+nameoffile[:-8]+'.tiff')
         tempmeasure2=rawfile2.read(c=0,z=0,t=t,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
 
+        # Mask labels: 2 is nucleus, 1 is background.
         tempmask=tempmask*(tempmask==2)/2
         tempbgmask=tempbgmask*(tempbgmask==1)*1
         measureMasked2=tempmeasure2*tempmask
 
         bgMasked2=tempbgmask*tempmeasure2
 
+        # Keep positive pixels below the 90th percentile in each region.
         Sig90Ch2=measureMasked2[(measureMasked2<np.percentile(measureMasked2[measureMasked2>0], 90)) & (measureMasked2>0)]
         Bg90Ch2=bgMasked2[(bgMasked2<np.percentile(bgMasked2[bgMasked2>0], 90)) & (bgMasked2>0)]
 
+        # Divide the filtered sums by the full mask areas, then subtract background.
         averageSig2=np.sum(np.float64(Sig90Ch2))/np.sum(np.float64(tempmask))
         averageBg2=np.sum(np.float64(Bg90Ch2))/np.sum(np.float64(tempbgmask)) ##maybe change size to np.count_nonzero
  
@@ -107,6 +115,7 @@ for x in range(len(onlyfiles)):
 
 
 
+        # Save masked signal and background images for a visual check.
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__measureCh2.tif', measureMasked2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__bgCh2.tif', bgMasked2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
      
@@ -123,13 +132,15 @@ NamesVector = [elem[elem.find('__')+2:elem.find('.ome')] for elem in onlyfiles]
 
 
 
-### so far the results were "resultsCh1", now the for these results to exponential decay.
+# Fit the measured signal and mask-area change separately.
 
 
 
+# Divide each fluorescence trace by its first value so it starts at 1.
 first_time_points = resultsCh2[0,:]
 normalized_matrix = resultsCh2 / first_time_points[np.newaxis, :]
 
+# Track the inverse change in nuclear mask area alongside fluorescence decay.
 first_time_points_Growth = MaskCh2[0,:]
 normalized_matrix_growth =  first_time_points_Growth[np.newaxis, :]/ MaskCh2 
 
@@ -145,6 +156,7 @@ C1MatG=np.zeros((6))
 C2MatG=np.zeros((6))
 
 
+# Fit fluorescence decay separately for the six recordings.
 for x in range(6):
     params, covariance = curve_fit(Single_exp_decay, vec, normalized_matrix[:, x],bounds=([0,0],[1,1]))
     y_pred = Single_exp_decay( vec, *params)
@@ -153,6 +165,7 @@ for x in range(6):
     print(x)
     del params, covariance, y_pred 
     
+# Fit the inverse change in nuclear area for the same six recordings.
 for x in range(6):
     params, covariance = curve_fit(Single_exp_decay, vec, normalized_matrix_growth[:, x],bounds=([0,0],[1,1]))
     y_pred = Single_exp_decay( vec, *params)
@@ -166,6 +179,7 @@ HalfLifeGrowth=np.log(2)/C1MatG
 
 
 
+# Plot each fluorescence trace with its fitted curve.
 for i in range(6):
     y_pred = Single_exp_decay( vec,  C1Mat[i],C2Mat[i])
     plt.plot(vec,y_pred,linestyle='dashed')
@@ -173,6 +187,7 @@ for i in range(6):
     plt.ylim((0,1))
     plt.show()
     
+# Plot the corresponding mask-area fits.
 for i in range(6):
     y_pred = Single_exp_decay( vec,  C1MatG[i],C2MatG[i])
     plt.plot(vec,y_pred,linestyle='dashed')

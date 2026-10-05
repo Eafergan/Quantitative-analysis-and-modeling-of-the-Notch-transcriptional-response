@@ -1,3 +1,4 @@
+# Measure both channels with the rebuilt masks and save the signals to Excel.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -18,6 +19,7 @@ now = datetime.now()
 dt_string = now.strftime("%d_%m_%Y_%H_%M_%S")
 
 
+# Create an Excel file named with the current date and time.
 workbook = xlsxwriter.Workbook(dt_string+'.xlsx')
 worksheet = workbook.add_worksheet()
 path=('C:\\work\\PyThis\\output\\channel1')
@@ -38,8 +40,10 @@ PixelT=iome.Pixels.get_PixelType()
 
 del nameoffile
 
+# This copy processes the first input file.
 nameoffile=  onlyfiles[0]
 
+# Write the time-point indices across the summary row.
 for x in range(48):
     worksheet.write(8*2  + 2, x+1, x) 
 
@@ -58,6 +62,7 @@ for x in range(1):
     
     
     
+    # Load both channels and the matching mask for each time point.
     for t in range(NumOfT):
         rawfile = bioformats.ImageReader(path+'\\fused\\'+nameoffile)
         tempmask=rawfile.read(c=0,z=0,t=t,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
@@ -69,6 +74,7 @@ for x in range(1):
         rawfile2 = bioformats.ImageReader(pathread+'channel2\\'+nameoffile)
         tempmeasure2=rawfile2.read(c=0,z=0,t=t,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
         
+        # Mask labels: 2 is the measured region, 1 is background.
         mask=tempmask*(tempmask==2)/2
         bgmask=tempmask*(tempmask==1)
         measure1=tempmeasure1*mask
@@ -76,6 +82,7 @@ for x in range(1):
         bg1=bgmask*tempmeasure1
         bg2=bgmask*tempmeasure2
         
+        # Average the signal and background regions separately in each channel.
         averageSig1=np.sum(np.float64(measure1))/np.sum(np.float64(mask))
         averageBg1=np.sum(np.float64(bg1))/np.sum(np.float64(bgmask))
         
@@ -84,6 +91,7 @@ for x in range(1):
         
       
         
+        # Save the mean, background-subtracted signal, and signal relative to background.
         worksheet.write(2+7*0, t+1, averageSig1)  #this write the value to the excel
         worksheet.write(1+7*0, t+1, averageBg1)          #this write the time
         worksheet.write(3+7*0, t+1, averageSig1-averageBg1) 

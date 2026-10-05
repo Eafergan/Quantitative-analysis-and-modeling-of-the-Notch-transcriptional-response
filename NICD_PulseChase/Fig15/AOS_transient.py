@@ -1,3 +1,4 @@
+# Measure nuclear NICD in the RBPJ overexpression experiment.
 %reset -f
 
 from matplotlib import pyplot as plt
@@ -82,11 +83,14 @@ NumOfTReal=int(NumOfT/2);
 
 
 
+# Start from the separated channels and saved ilastik masks.
+# Rows are time points and columns are input files.
 resultsCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 bgCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 MaskCh2=np.zeros((NumOfTReal,len(onlyfiles) )) 
 
 
+# Open the nuclear and Notch masks for each input file.
 for x in range(len(onlyfiles)):
     nameoffile=  onlyfiles[x]  
     print(nameoffile[:-8]) 
@@ -95,12 +99,14 @@ for x in range(len(onlyfiles)):
     IlastikNotchBG = h5py.File(path[0:-6] + 'output\\channel2\\Ilastik\\'+nameoffile[:-8]+'.h5')
     MaskNotchBG = IlastikNotchBG['exported_data']
     
+    # Measure channel 2 using the masks from the same time point.
     for t in range(NumOfTReal):
         tempmask=Mask[t,:,:,0]
         tempbgmaskNotch=MaskNotchBG[t,:,:,0]
         rawfile2 = bioformats.ImageReader( path[0:-6] + 'output\\channel2\\'+nameoffile[:-8]+'.tiff')
         tempmeasure2=rawfile2.read(c=0,z=0,t=t,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
 
+        # Use nuclear label 2 for signal and Notch label 1 for background.
         tempmask=tempmask*(tempmask==2)/2
         tempbgmask=tempbgmaskNotch*(tempbgmaskNotch==1)*1
         tempNotchMask=tempbgmaskNotch*(tempbgmaskNotch==2)/2
@@ -109,9 +115,11 @@ for x in range(len(onlyfiles)):
         bgMasked2=tempbgmask*tempmeasure2
 
 
+        # Keep positive pixels below 400 in both the signal and background regions.
         SigCh2=measureMasked2[(measureMasked2<400) & (measureMasked2>0)] 
         BgCh2=bgMasked2[(bgMasked2<400) & (bgMasked2>0)]
 
+        # Average only the retained pixels, then subtract the background mean.
         averageSig2=np.sum(np.float64(SigCh2))/len(SigCh2)
         averageBg2=np.sum(np.float64(BgCh2))/len(BgCh2)
 
@@ -122,6 +130,7 @@ for x in range(len(onlyfiles)):
 
 
 
+        # Save masked signal and background images for a visual check.
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__measureCh2.tif', measureMasked2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
         bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__bgCh2.tif', bgMasked2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)
         #bioformats.write_image(path[0:-6] + 'output\\controls\\'+nameoffile[:-8]+'__aLLnOTCH.tif', measureAllNotch2,  PixelT, c=0, z=0, t=t, size_c=1, size_z=1, size_t=NumOfTReal, channel_names=None)

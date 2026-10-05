@@ -1,3 +1,4 @@
+# Save separate JF and Cerulean Z-stacks for the TSA measurements.
 %reset -f
 
 import bioformats
@@ -18,12 +19,14 @@ javabridge.call(rootLogger, "setLevel", "(Lch/qos/logback/classic/Level;)V", log
 
 
 
+# Set the input path and create the output/channel1_JF and output/channel2_Cer folders.
 path=('D:\\Zeiss\\TSA2uM\\input\\')
 
 from os.path import isfile, join
 onlyfiles = [f for f in listdir(path) if isfile(join(path, f))]
 
 
+# Read the number of Z slices and pixel type for each input image.
 for x in onlyfiles:
     xml_string = bioformats.get_omexml_metadata(path+'\\'+x)
     ome = bioformats.OMEXML(xml_string) # be sure everything is ascii
@@ -33,6 +36,7 @@ for x in onlyfiles:
     
     rawfile = bioformats.ImageReader(join(path,x))
     print (x)
+    # Copy each slice into separate JF and Cerulean files, keeping the Z order.
     for z in range(NumOfZ):
         tempimg1=rawfile.read(c=0,z=z,t=0,series=None,index=None,rescale=False,wants_max_intensity=False,channel_names=None,XYWH=None)
         bioformats.write_image(path[0:-6] + 'output\\channel1_JF\\'+x[:-4]+'.tiff', tempimg1, PixelT, c=0, z=z, t=0, size_c=1, size_z=NumOfZ, size_t=1, channel_names=None)
